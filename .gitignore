@@ -31,7 +31,8 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 /tests/results/
 
 # Sensitive config & runtime files
-application/config/database.php
+application/config/database.local.php
+application/config/*/database.php
 sys_get_temp_dir()/
 error_log
 .well-known/
