@@ -35,25 +35,26 @@
                 <button type="reset" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="formEditUser">
+                <form id="formEditUser" onsubmit="return false">
+                    <input type="hidden" id="editiduser" name="id_user">
                     <div class="col mb-3">
                         <div class="row mb-3">
                             <div class="col">
                                 <label class="form-label">Nama</label>
-                                <input type="text" class="form-control" id="editnama" name="nama">
+                                <input type="text" class="form-control" id="editnama" name="nama" maxlength="50">
                             </div>
                             <div class="col">
                                 <label class="form-label">Username</label>
-                                <input type="text" class="form-control" id="editusername" name="username">
-                                <div class="form-text">username digunakan untuk akses login</div>
+                                <input type="text" class="form-control" id="editusername" name="username" maxlength="10">
+                                <div class="form-text">username digunakan untuk akses login (6-10 karakter)</div>
                             </div>
                         </div>
                         <div class="row mb-3">
                             <div class="col">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="" id="defaultCheck1">
+                                    <input class="form-check-input" type="checkbox" value="1" id="defaultCheck1" name="change_pass">
                                     <label class="form-check-label" for="defaultCheck1">
-                                        Ganti  Password
+                                        Ganti Password
                                     </label>
                                 </div>
                                 <input type="password" class="form-control" id="editpassword" minlength="6" name="password" placeholder="Masukkan Password" disabled>
@@ -67,8 +68,8 @@
                         <div class="row mb-3">
                             <div class="col">
                                 <div class="form-check form-switch mt-4">
-                                    <input class="form-check-input" type="checkbox" id="editstatus" name="status" checked="">
-                                    <label class="form-check-label" for="statusUser">Status user</label>
+                                    <input class="form-check-input" type="checkbox" id="editstatus" name="status" value="1" checked="">
+                                    <label class="form-check-label" for="editstatus">Status user</label>
                                 </div>
                             </div>
                             <div class="col">
@@ -84,8 +85,8 @@
                     </div>
                     <div class="row">
                         <div class="col d-flex justify-content-between">
-                            <button type="reset" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close"><i class='bx bxs-x-square'></i> Batal</button>
-                            <button class="btn btn-primary" id="editSimpan"><i class="bx bx-save"></i> Simpan</button>
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close"><i class='bx bxs-x-square'></i> Batal</button>
+                            <button type="button" class="btn btn-primary" id="editSimpan"><i class="bx bx-save"></i> Simpan</button>
                         </div>
                     </div>
                 </form>
@@ -102,17 +103,17 @@
                 <button type="reset" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="formAddUser">
+                <form id="formAddUser" onsubmit="return false">
                     <div class="col mb-3">
                         <div class="row mb-3">
                             <div class="col">
                                 <label class="form-label">Nama</label>
-                                <input type="text" class="form-control" id="nama" name="nama">
+                                <input type="text" class="form-control" id="nama" name="nama" maxlength="50">
                             </div>
                             <div class="col">
                                 <label class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" name="username">
-                                <div class="form-text">username digunakan untuk akses login</div>
+                                <input type="text" class="form-control" id="username" name="username" maxlength="10">
+                                <div class="form-text">username digunakan untuk akses login (6-10 karakter)</div>
                             </div>
                         </div>
                         <div class="row mb-3">
@@ -129,8 +130,8 @@
                         <div class="row mb-3">
                             <div class="col">
                                 <div class="form-check form-switch mt-4">
-                                    <input class="form-check-input" type="checkbox" id="status" name="status" checked="">
-                                    <label class="form-check-label" for="statusUser">Status user</label>
+                                    <input class="form-check-input" type="checkbox" id="status" name="status" value="1" checked="">
+                                    <label class="form-check-label" for="status">Status user</label>
                                 </div>
                             </div>
                             <div class="col">
@@ -146,8 +147,8 @@
                     </div>
                     <div class="row">
                         <div class="col d-flex justify-content-between">
-                            <button type="reset" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close"><i class='bx bxs-x-square'></i> Batal</button>
-                            <button class="btn btn-primary" id="addSimpan"><i class="bx bx-save"></i> Simpan</button>
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close"><i class='bx bxs-x-square'></i> Batal</button>
+                            <button type="button" class="btn btn-primary" id="addSimpan"><i class="bx bx-save"></i> Simpan</button>
                         </div>
                     </div>
                 </form>
@@ -186,13 +187,16 @@
                 sLengthMenu: "_MENU_ &nbsp;&nbsp;Data Per Halaman",
             },
             columns: [{
-                    data: 'usr_fullname'
+                    data: 'usr_fullname',
+                    render: $.fn.dataTable.render.text()
                 },
                 {
-                    data: 'usr_name'
+                    data: 'usr_name',
+                    render: $.fn.dataTable.render.text()
                 },
                 {
-                    data: 'role_name'
+                    data: 'role_name',
+                    render: $.fn.dataTable.render.text()
                 },
                 {
                     data: 'status',
@@ -208,13 +212,13 @@
                 {
                     data: 'status',
                     render: function(data, type, full, row) {
-                        html = `<a type="button" class="btn" id="edituser" data-bs-toggle="dropdown" href="<?= base_url('edituser/') ?>` + full[`id_user`] + `"><i class="bx bx-edit-alt text-warning me-1"></i> Edit</a>`
+                        html = `<a type="button" class="btn" id="edituser" href="<?= base_url('edituser/') ?>` + full[`id_user`] + `"><i class="bx bx-edit-alt text-warning me-1"></i> Edit</a>`
                         return html;
                     }
                 }
             ],
             aaSorting: [
-                [4, "asc"]
+                [3, "desc"]
             ],
             sPaginationType: "simple_numbers",
             iDisplayLength: 10,
@@ -229,8 +233,7 @@
 
             if ($('#password').val() === $('#rptpassword').val()) {
                 $(this).attr('disabled', true);
-                var FormData = '&' + $('#formAddUser input, select').serialize();
-                // console.log(FormData);
+                var FormData = $('#formAddUser').serialize();
                 $.ajax({
                     url: '<?= base_url('addUser') ?>',
                     type: 'POST',
@@ -259,6 +262,14 @@
             }
         });
 
+        $(document).on('change', '#defaultCheck1', function() {
+            var checked = $(this).is(':checked');
+            $('#editpassword, #editrptpassword').prop('disabled', !checked);
+            if (!checked) {
+                $('#editpassword, #editrptpassword').val('');
+            }
+        });
+
         $(document).on('click', '#edituser', function(e) {
             e.preventDefault();
             var Link = $(this).attr('href');
@@ -268,38 +279,66 @@
                 cache: false,
                 dataType: 'json',
                 success: function(json) {
-                    // console.log(json);
                     if (json.status == 1) {
+                        $('#editiduser').val(json.data.id_user);
                         $('#editnama').val(json.data.usr_fullname);
                         $('#editusername').val(json.data.usr_name);
-                        if (json.data.status == 1){
-                            $('#editstatus').attr('checked', true);
-                        }else{
-                            $('#editstatus').attr('checked', false); 
-                        }
-
-                        $('select[id="editaccess"]').val(json.data.usr_role);
+                        $('#editstatus').prop('checked', json.data.status == 1);
+                        $('#defaultCheck1').prop('checked', false);
+                        $('#editpassword, #editrptpassword').prop('disabled', true).val('');
+                        $('#editaccess').val(json.data.usr_role);
                         $('#modal-edituser').modal('show');
-
                     } else {
                         sweetalert2(json.alert, json.pesan);
-                        $('#addSimpan').attr('disabled', false);
                     }
                 }
             })
         });
+
+        $(document).on('click', '#editSimpan', function(e) {
+            e.preventDefault();
+
+            if ($('#defaultCheck1').is(':checked') && $('#editpassword').val() !== $('#editrptpassword').val()) {
+                sweetalert2('warning', 'Verifikasi password tidak sama');
+                return;
+            }
+
+            $(this).attr('disabled', true);
+            var FormData = $('#formEditUser').serialize();
+            $.ajax({
+                url: '<?= base_url('updateUser') ?>',
+                type: 'POST',
+                cache: false,
+                data: FormData,
+                dataType: 'json',
+                success: function(json) {
+                    if (json.status == 1) {
+                        sweetalert2(json.alert, json.pesan);
+                        $('#modal-edituser').modal('hide');
+                        dataTable.ajax.reload(null, false);
+                    } else {
+                        sweetalert2(json.alert, json.pesan);
+                        $('#editSimpan').attr('disabled', false);
+                    }
+                },
+                error: function(xhr, ajaxOptions, thrownError) {
+                    sweetalert2('warning', xhr.status + ' ' + thrownError);
+                    $('#editSimpan').attr('disabled', false);
+                }
+            });
+        });
     })
 
-
-
-
     $('#modal-adduser').on('hidden.bs.modal', function() {
-        $('#formAddUser').trigger("reset")
+        $('#formAddUser').trigger("reset");
         $('#addSimpan').attr('disabled', false);
     });
 
     $('#modal-edituser').on('hidden.bs.modal', function() {
-        $('#formEditUser').trigger("reset")
-        $('#edit Simpan').attr('disabled', false);
+        $('#formEditUser').trigger("reset");
+        $('#editiduser').val('');
+        $('#defaultCheck1').prop('checked', false);
+        $('#editpassword, #editrptpassword').prop('disabled', true).val('');
+        $('#editSimpan').attr('disabled', false);
     });
 </script>

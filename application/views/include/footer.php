@@ -56,16 +56,21 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body" id="ModalContent">
-                                    <form id="formchangpass">
-                                        <label class="form-label">Masukkan Password</label>
+                                    <form id="formchangpass" onsubmit="return false">
+                                        <label class="form-label">Password Lama</label>
+                                        <div class="input-group input-group-merge mb-3">
+                                            <input type="password" id="oldPass" class="form-control form-control-sm" name="oldPass" aria-describedby="oldPasswordToggler" />
+                                            <span id="oldPasswordToggler" class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
+                                        </div>
+                                        <label class="form-label">Password Baru</label>
                                         <div class="input-group input-group-merge mb-3">
                                             <input type="password" id="inptPass" class="form-control form-control-sm changepass" name="inptPass" aria-describedby="passwordToggler" />
                                             <span id="passwordToggler" class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
                                         </div>
-                                        <label class="form-label">Ulangi Password</label>
+                                        <label class="form-label">Ulangi Password Baru</label>
                                         <div class="input-group input-group-merge mb-3">
-                                            <input type="password" id="repeatinptPass" class="form-control form-control-sm" name="repeatinptPass" aria-describedby="passwordToggler" />
-                                            <span id="passwordToggler" class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
+                                            <input type="password" id="repeatinptPass" class="form-control form-control-sm" name="repeatinptPass" aria-describedby="repeatPasswordToggler" />
+                                            <span id="repeatPasswordToggler" class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
                                         </div>
                                         <li><span class="text-danger minchar">Minimal 6 karakter</span></li>
                                         <!-- <li><span class="text-danger mustnumalpha">Wajib terdiri angka dan huruf</span></li> -->
@@ -73,7 +78,7 @@
                                 </div>
                                 <div class="modal-footer" id="ModalFooter">
                                     <button type="reset" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" aria-label="Close">Tutup</button>
-                                    <button id="savechangepass" class="btn btn-sm btn-primary" disabled>Simpan</button>
+                                    <button type="button" id="savechangepass" class="btn btn-sm btn-primary" disabled>Simpan</button>
                                 </div>
                             </div>
                         </div>
@@ -93,28 +98,56 @@
                         });
 
                         $('#changePassModal').on('hidden.bs.modal', function() {
-                            $('#formchangpass').trigger("reset")
-                            $('.minchar').removeClass('text-success').addClass('text-danger')
-                            // $('.mustnumalpha').removeClass('text-success').addClass('text-danger')
+                            $('#formchangpass').trigger("reset");
+                            $('#savechangepass').attr('disabled', true);
+                            $('.minchar').removeClass('text-success').addClass('text-danger');
+                            $('#formchangpass input').attr('type', 'password');
+                            $('#formchangpass .cursor-pointer i').removeClass('bx-show').addClass('bx-hide');
                         });
 
-                        $('.changepass').on('keyup', function(e) {
-                            // console.log($(this).val().length)
-                            if ($(this).val().length >= 6) {
-                                $('.minchar').removeClass('text-danger').addClass('text-success')
+                        function validateChangePassForm() {
+                            var oldPass = $('#oldPass').val();
+                            var newPass = $('#inptPass').val();
+                            var repeatPass = $('#repeatinptPass').val();
+
+                            if (newPass.length >= 6) {
+                                $('.minchar').removeClass('text-danger').addClass('text-success');
                             } else {
-                                $('.minchar').removeClass('text-success').addClass('text-danger')
+                                $('.minchar').removeClass('text-success').addClass('text-danger');
                             }
-                        });
 
-                        $(document).on('keyup', '#inptPass, #repeatinptPass', function(){
-                            if ($('#inptPass').val() === $('#repeatinptPass').val()) {
-                                // console.log('oke')
-                                $('#savechangepass').attr('disabled', false)
-                            }else{
-                                $('#savechangepass').attr('disabled', true)
-                            }
-                        })
+                            var isValid = oldPass.length > 0 && newPass.length >= 6 && newPass === repeatPass;
+                            $('#savechangepass').attr('disabled', !isValid);
+                        }
+
+                        $(document).on('keyup change', '#oldPass, #inptPass, #repeatinptPass', validateChangePassForm);
+
+                        $(document).on('click', '#savechangepass', function(e) {
+                            e.preventDefault();
+                            var $btn = $(this);
+                            $btn.attr('disabled', true);
+
+                            $.ajax({
+                                url: '<?= base_url('change_password') ?>',
+                                type: 'POST',
+                                cache: false,
+                                data: $('#formchangpass').serialize(),
+                                dataType: 'json',
+                                success: function(json) {
+                                    if (json.status == 1) {
+                                        sweetalert2(json.alert, json.pesan);
+                                        $('#changePassModal').modal('hide');
+                                    } else {
+                                        sweetalert2(json.alert, json.pesan);
+                                        validateChangePassForm();
+                                    }
+                                },
+                                error: function(xhr, ajaxOptions, thrownError) {
+                                    sweetalert2('warning', xhr.status + ' ' + thrownError);
+                                    validateChangePassForm();
+                                }
+                            });
+                        });
 
                         /* Show Hide Password*/
                         $('.cursor-pointer').click(function() {

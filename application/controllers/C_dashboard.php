@@ -15,7 +15,7 @@ class C_dashboard extends BaseController {
 		}
 	}
 	/* OLD */
-	function get_notif() {
+	protected function get_notif() {
 		if ($this->secure()) {
 			if($this->session->userdata('s_role') == 2){
 				$result = $this->M_dashboard->get_notif($this->session->userdata('s_id_px'));
@@ -34,7 +34,7 @@ class C_dashboard extends BaseController {
 			}
 		}
 	}
-	function give_rate($order_id) {
+	protected function give_rate($order_id) {
 		if ($this->secure()) {
 			$headerInfo = array(
 				'pageTitle' => 'Beri Penilaian',
@@ -43,7 +43,7 @@ class C_dashboard extends BaseController {
 			$this->load->view('give_rate', $data);
 		}
 	}
-	function save_rate() {
+	protected function save_rate() {
 		if ($this->secure()) {
 			if ($_POST) {
 				$dt = array(

@@ -156,17 +156,23 @@
 <script type="text/javascript">
     $(document).ready(function() {
 
+        var showTableLoader = true;
         var dataTable = $('#myTabel').DataTable({
             ajax: {
                 url: '<?= base_url('deliveryjson/') ?>' + $('#delDate').val() + "/" + $('#delType').val(),
                 dataSrc: 'data',
                 beforeSend: function() {
-                    $('#loader').css('display', 'block');
+                    if (showTableLoader) {
+                        $('#loader').css('display', 'block');
+                    }
                 },
                 complete: function() {
-                    setTimeout(() => {
-                        $('#loader').css('display', 'none');
-                    }, 500);
+                    if (showTableLoader) {
+                        setTimeout(() => {
+                            $('#loader').css('display', 'none');
+                        }, 500);
+                    }
+                    showTableLoader = false;
                 }
             },
             oLanguage: {
@@ -182,10 +188,12 @@
                     data: 'nomor'
                 },
                 {
-                    data: 'receiver_name'
+                    data: 'receiver_name',
+                    render: $.fn.dataTable.render.text()
                 },
                 {
-                    data: 'address'
+                    data: 'address',
+                    render: $.fn.dataTable.render.text()
                 },
                 // { data: 'usr_fullname' },
                 {
@@ -262,16 +270,21 @@
             dateFormat: 'Y-m-d',
             disableMobile: true,
             onChange: function(selectedDates, dateStr, instance) {
+                showTableLoader = true;
                 dataTable.ajax.url('<?= base_url('deliveryjson/') ?>' + $('#delDate').val() + "/" + $('#delType').val()).load();
             },
         });
         /* end Flatpickr */
 
         $('#delType').change(function() {
+            showTableLoader = true;
             dataTable.ajax.url('<?= base_url('deliveryjson/') ?>' + $('#delDate').val() + "/" + $('#delType').val()).load();
         });
 
         setInterval(() => {
+            if (document.hidden || $('.modal.show').length > 0 || $('.swal2-container').length > 0 || $('.dropdown-menu.show').length > 0) {
+                return;
+            }
             dataTable.ajax.reload(null, false);
         }, 7000);
 
@@ -304,8 +317,9 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: Link + '/' + result.value,
+                        url: Link,
                         type: 'POST',
+                        data: { reason: result.value },
                         cache: false,
                         dataType: 'json',
                         success: function(json) {

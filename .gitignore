@@ -2,6 +2,14 @@
 
 application/cache/*
 !application/cache/index.html
+!application/cache/session/
+application/cache/session/*
+!application/cache/session/index.html
+!application/cache/login_attempts/
+application/cache/login_attempts/*
+!application/cache/login_attempts/index.html
+
+application/config/database.local.php
 
 application/logs/*
 !application/logs/index.html

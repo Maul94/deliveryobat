@@ -4,6 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta name="csrf-token-name" content="<?= html_escape($this->security->get_csrf_token_name()) ?>" />
+    <meta name="csrf-token-hash" content="<?= html_escape($this->security->get_csrf_hash()) ?>" />
     <title><?= $pageTitle; ?> | <?= config_item('web_title') ?></title>
     <meta name="description" content="Most Powerful &amp; Comprehensive Bootstrap 5 HTML Admin Dashboard Template built for developers!" />
     <meta name="keywords" content="dashboard, bootstrap 5 dashboard, bootstrap 5 design, bootstrap 5">
@@ -74,6 +76,49 @@
     <!-- beautify ignore:end -->
 <link rel="stylesheet" href="<?= config_item('assets'); ?>vendor/libs/jquery-ui/jquery-ui.css">
 <script src="<?= config_item('assets'); ?>vendor/libs/jquery/jquery-3.6.0.min.js"></script>
+<script>
+    window.escapeHtml = function(str) {
+        if (str === null || str === undefined) {
+            return '';
+        }
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
+        if (options.crossDomain) {
+            return;
+        }
+        var method = (options.type || options.method || 'GET').toUpperCase();
+        if (method !== 'POST') {
+            return;
+        }
+        var tokenName = $('meta[name="csrf-token-name"]').attr('content');
+        var tokenHash = $('meta[name="csrf-token-hash"]').attr('content');
+        if (!tokenName || !tokenHash) {
+            return;
+        }
+        if (typeof FormData !== 'undefined' && options.data instanceof FormData) {
+            if (!options.data.has(tokenName)) {
+                options.data.append(tokenName, tokenHash);
+            }
+        } else if (typeof options.data === 'string') {
+            if (options.data.indexOf(encodeURIComponent(tokenName) + '=') === -1 && options.data.indexOf(tokenName + '=') === -1) {
+                options.data += (options.data.length > 0 ? '&' : '') + encodeURIComponent(tokenName) + '=' + encodeURIComponent(tokenHash);
+            }
+        } else if ($.isPlainObject(options.data)) {
+            if (!(tokenName in options.data)) {
+                options.data[tokenName] = tokenHash;
+            }
+        } else if (!options.data) {
+            options.data = encodeURIComponent(tokenName) + '=' + encodeURIComponent(tokenHash);
+        }
+    });
+</script>
 <script src="<?= config_item('assets'); ?>vendor/libs/jquery-ui/jquery-ui.js"></script>
 <script src="<?= config_item('assets'); ?>vendor/js/bootstrap.js"></script>
 <script src="<?= config_item('assets'); ?>vendor/libs/sweetalert2/sweetalert2.js"></script>
@@ -182,16 +227,6 @@
                     <div data-i18n="Basic">Laporan Pendapatan</div>
                   </a>
                 </li>
-                <li class="menu-item">
-                  <a href="#" class="menu-link">
-                    <div data-i18n="Advanced">Advanced</div>
-                  </a>
-                </li>
-                <li class="menu-item">
-                  <a href="#" class="menu-link">
-                    <div data-i18n="Extensions">Extensions</div>
-                  </a>
-                </li>
               </ul>
             </li>
           <?php } ?>
@@ -229,7 +264,7 @@
                           </div>
                         </div>
                         <div class="flex-grow-1">
-                          <span class="fw-semibold d-block"><?= $this->session->userdata('s_name') ?></span>
+                          <span class="fw-semibold d-block"><?= html_escape($this->session->userdata('s_name')) ?></span>
                           <!--<small class="text-muted"><?= $this->session->userdata('s_usr_role') ?></small>-->
                         </div>
                       </div>
@@ -242,12 +277,6 @@
                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePassModal">
                       <i class="bx bx-cog me-2"></i>
                       <span class="align-middle">Ubah Password</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePassModal">
-                      <i class="bx bx-cog me-2"></i>
-                      <span class="align-middle">Ubah </span>
                     </a>
                   </li>
                   <li>

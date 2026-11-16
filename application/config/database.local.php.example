@@ -1,0 +1,10 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+return array(
+	'hostname' => 'localhost',
+	'username' => 'your_db_username',
+	'password' => 'your_db_password',
+	'database' => 'your_db_name',
+	'port'     => '3306',
+);

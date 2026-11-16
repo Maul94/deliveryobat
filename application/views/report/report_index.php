@@ -13,6 +13,7 @@
             </div>
             <div class="card-body justify-content-center">
                 <form id="form-id" method="POST" action="<?= base_url('print_report') ?>" target="_blank">
+                    <input type="hidden" name="<?= html_escape($this->security->get_csrf_token_name()) ?>" value="<?= html_escape($this->security->get_csrf_hash()) ?>">
                     <div class="row card-text mb-2">
                         <div class="col-4 text-end">
                             <div>Jenis Laporan</div>

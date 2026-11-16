@@ -18,16 +18,31 @@ class C_login extends BaseController {
 		$this->load->view('auth/usrlogin');
 	}
 	function do_usrlogin() {
-		if ($_POST) {
+		if ($this->require_post()) {
 			$gagalLogin = TRUE;
-			$usrName = $_POST['usrName'];
-			$usrPassword = $_POST['usrPassword'];
+			$usrName = trim((string) $this->input->post('usrName', TRUE));
+			$usrPassword = (string) $this->input->post('usrPassword');
+			$clientIp = $this->input->ip_address();
+
+			if ($usrName === '' || $usrPassword === '') {
+				$this->error("Username dan Password harus diisi!");
+				return;
+			}
+
+			if ($this->is_login_rate_limited($clientIp, $usrName)) {
+				$this->error("Terlalu banyak percobaan login gagal. Silakan coba lagi beberapa menit lagi.");
+				return;
+			}
+
 			$where = array(
 	            'usr_name' => $usrName
 	        );
 		    $usrLogin = $this->M_login->get_usr($where);
 		    if ($usrLogin->num_rows() > 0) {
 				if (password_verify($usrPassword, $usrLogin->row()->usr_password)) {
+					$this->clear_login_attempts($clientIp, $usrName);
+					$this->session->sess_regenerate(TRUE);
+
 					/* create session */
 					$usrModule = $this->M_login->get_module($where);
 					$this->session->set_userdata(array(
@@ -47,6 +62,7 @@ class C_login extends BaseController {
 				}
 			}
 			if($gagalLogin) {
+				$this->record_failed_login($clientIp, $usrName);
 				// $datajson = array(
 				// 	'status' => FALSE,
 				// 	'message' => 'Username atau Password Salah!'
@@ -54,6 +70,58 @@ class C_login extends BaseController {
 				$this->error("Username atau Password Salah!");
 			}
 			// echo json_encode($datajson);
+		}
+	}
+
+	protected function get_rate_limit_dir() {
+		$dir = APPPATH . 'cache/login_attempts/';
+		if (!is_dir($dir)) {
+			@mkdir($dir, 0750, TRUE);
+		}
+		return $dir;
+	}
+
+	protected function get_rate_limit_keys($ip, $username) {
+		return array(
+			'user' => array('file' => $this->get_rate_limit_dir() . hash('sha256', 'u|' . $ip . '|' . strtolower($username)) . '.json', 'max' => 5, 'window' => 900),
+			'ip'   => array('file' => $this->get_rate_limit_dir() . hash('sha256', 'ip|' . $ip) . '.json', 'max' => 20, 'window' => 900),
+		);
+	}
+
+	protected function read_attempt_record($file, $window) {
+		if (!file_exists($file)) {
+			return array('count' => 0, 'first_at' => time());
+		}
+		$raw = @file_get_contents($file);
+		$data = json_decode((string) $raw, TRUE);
+		if (!is_array($data) || !isset($data['count'], $data['first_at']) || (time() - (int) $data['first_at']) > $window) {
+			return array('count' => 0, 'first_at' => time());
+		}
+		return array('count' => (int) $data['count'], 'first_at' => (int) $data['first_at']);
+	}
+
+	protected function is_login_rate_limited($ip, $username) {
+		foreach ($this->get_rate_limit_keys($ip, $username) as $cfg) {
+			$rec = $this->read_attempt_record($cfg['file'], $cfg['window']);
+			if ($rec['count'] >= $cfg['max']) {
+				return TRUE;
+			}
+		}
+		return FALSE;
+	}
+
+	protected function record_failed_login($ip, $username) {
+		foreach ($this->get_rate_limit_keys($ip, $username) as $cfg) {
+			$rec = $this->read_attempt_record($cfg['file'], $cfg['window']);
+			$rec['count'] += 1;
+			@file_put_contents($cfg['file'], json_encode($rec), LOCK_EX);
+		}
+	}
+
+	protected function clear_login_attempts($ip, $username) {
+		$keys = $this->get_rate_limit_keys($ip, $username);
+		if (file_exists($keys['user']['file'])) {
+			@unlink($keys['user']['file']);
 		}
 	}
 	function logout() {
@@ -70,7 +138,7 @@ class C_login extends BaseController {
 		}
 	}
 	/* OLD */
-	function do_login() {
+	protected function do_login() {
 		if ($this->session->userdata('s_login') == FALSE) {
 			if($_POST){
 				$gagalLogin = TRUE;
@@ -112,14 +180,14 @@ class C_login extends BaseController {
 			redirect('dashboard');
 		}
 	}
-	function register() {
+	protected function register() {
 		if ($this->session->userdata('s_login') == FALSE) {
 			$this->load->view('auth/register');
 		}else{
 			redirect('dashboard');
 		}
 	}
-	function get_px() {
+	protected function get_px() {
 		if ($this->session->userdata('s_login') == FALSE) {
 			$pxNoRm = $_POST['pxNoRm'];
 			$pxBirthDate = $_POST['pxBirthDate'];
@@ -159,7 +227,7 @@ class C_login extends BaseController {
 			redirect('dashboard');
 		}
 	}
-	function simpan_register() {
+	protected function simpan_register() {
 		if ($this->session->userdata('s_login') == FALSE) {
 			if($_POST){
 				$pxPhone = $_POST['pxPhone'];

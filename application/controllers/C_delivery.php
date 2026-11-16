@@ -15,7 +15,7 @@ class C_delivery extends BaseController
 
 	function index()
 	{
-		if ($this->secure()) {
+		if ($this->secure_non_driver()) {
 			$headerInfo['pageTitle'] = 'Daftar Pengiriman';
 
 			$this->load_views('delivery/delivery_list', $headerInfo);
@@ -25,6 +25,13 @@ class C_delivery extends BaseController
 	function deliveryjson($date, $deltype, $driver = null)
 	{
 		if ($this->secure()) {
+			if (!$this->is_valid_date($date)) {
+				$date = date('Y-m-d');
+			}
+			if ($deltype !== 'semua' && !in_array((string) $deltype, array('0', '1', '2', '3'), TRUE)) {
+				$deltype = 'semua';
+			}
+
 			$result = $this->M_delivery->getDeliveryList($date, $deltype, $driver);
 
 			if ($result) {
@@ -45,7 +52,7 @@ class C_delivery extends BaseController
 
 	function entry_delivery()
 	{
-		if ($this->secure()) {
+		if ($this->secure_non_driver()) {
 			$headerInfo['pageTitle'] = 'Tambah Pengiriman';
 			$headerInfo['kurir'] = $this->M_delivery->getKurir();
 
@@ -55,7 +62,7 @@ class C_delivery extends BaseController
 
 	function entry_delivery2()
 	{
-		if ($this->secure()) {
+		if ($this->secure_non_driver()) {
 			$headerInfo['pageTitle'] = 'Tambah Pengiriman';
 			$headerInfo['kurir'] = $this->M_delivery->getKurir();
 
@@ -65,11 +72,14 @@ class C_delivery extends BaseController
 
 	function edit_delivery($delivery_id)
 	{
-		if ($this->secure()) {
+		if ($this->secure_non_driver()) {
 			$headerInfo['pageTitle'] = 'Edit Pengiriman';
 			$headerInfo['kurir'] = $this->M_delivery->getKurir();
 
-			$result = $this->M_delivery->getDelivery($delivery_id);
+			$result = $this->M_delivery->getDelivery((int) $delivery_id);
+			if (!$result) {
+				show_404();
+			}
 			$headerInfo['data'] = $result;
 
 			$this->load_views('delivery/edit_delivery', $headerInfo);
@@ -78,87 +88,117 @@ class C_delivery extends BaseController
 
 	function save_delivery()
 	{
-		if ($this->secure()) {
-			if ($_POST) {
-				$error = TRUE;
-				if ($_POST['typePost'] == 'entry') {
-					$data = array(
-						'user_entry'		=> $this->session->userdata('s_usr_id'),
-						'delivery_date'		=> $_POST['delDate'],
-						'delivery_time'		=> $_POST['delTime'],
-						'delivery_type'		=> 3,
-						'invoice_num'		=> date('ymdHis') . strtoupper(uniqid()),
-						'address'			=> $_POST['delAddress'],
-						'detail_address'	=> $_POST['delDetailAddress'],
-						'receiver_name'		=> $_POST['delName'],
-						'receiver_phone'	=> $_POST['delPhone'],
-						'distance'			=> $_POST['delJarak'],
-						'total'				=> $_POST['delTotal'],
-						'resep'				=> $_POST['delResep'],
-						'kurir_id'			=> $_POST['idKurir'],
-						'lat'				=> $_POST['dellat'],
-						'lon'				=> $_POST['dellon'],
-						'prov_id'			=> $_POST['idProv'],
-						'city_id'			=> $_POST['idCity'],
-						'dis_id'			=> $_POST['idDis'],
-						'subdis_id'			=> $_POST['idSubdis'],
-						'rt_address'		=> $_POST['delRT'],
-						'rw_address'		=> $_POST['delRW']
-					);
-					$result_id = $this->M_simpan->tambahdata($data, 'delivery');
+		if ($this->secure_non_driver() && $this->require_post()) {
+			$typePost = (string) $this->input->post('typePost');
+			if (!in_array($typePost, array('entry', 'edit'), TRUE)) {
+				$this->error("Tipe aksi tidak valid!");
+				return;
+			}
 
-					if ($result_id) {
-						$error = FALSE;
-					}
-				} else if ($_POST['typePost'] == 'edit') {
-					$where['id_delivery'] = $_POST['delivery_id'];
+			$delDate = trim((string) $this->input->post('delDate'));
+			$delTime = trim((string) $this->input->post('delTime'));
+			$delName = trim((string) $this->input->post('delName'));
+			$delPhone = trim((string) $this->input->post('delPhone'));
+			$delAddress = trim((string) $this->input->post('delAddress'));
+			$delDetailAddress = trim((string) $this->input->post('delDetailAddress'));
+			$delResep = trim((string) $this->input->post('delResep'));
+			$idKurir = (int) $this->input->post('idKurir');
+			$lat = $this->input->post('dellat');
+			$lon = $this->input->post('dellon');
+			$jarakInput = $this->input->post('delJarak');
 
-					$data = array(
-						'user_entry'		=> $this->session->userdata('s_usr_id'),
-						'delivery_date'		=> $_POST['delDate'],
-						'delivery_time'		=> $_POST['delTime'],
-						'delivery_type'		=> 3,
-						'invoice_num'		=> date('ymdHis') . strtoupper(uniqid()),
-						'address'			=> $_POST['delAddress'],
-						'detail_address'	=> $_POST['delDetailAddress'],
-						'receiver_name'		=> $_POST['delName'],
-						'receiver_phone'	=> $_POST['delPhone'],
-						'distance'			=> $_POST['delJarak'],
-						'total'				=> $_POST['delTotal'],
-						'resep'				=> $_POST['delResep'],
-						'kurir_id'			=> $_POST['idKurir'],
-						'lat'				=> $_POST['dellat'],
-						'lon'				=> $_POST['dellon'],
-						'prov_id'			=> $_POST['idProv'],
-						'city_id'			=> $_POST['idCity'],
-						'dis_id'			=> $_POST['idDis'],
-						'subdis_id'			=> $_POST['idSubdis'],
-						'rt_address'		=> $_POST['delRT'],
-						'rw_address'		=> $_POST['delRW']
-					);
+			if (
+				!$this->is_valid_date($delDate) ||
+				$delTime === '' ||
+				$delName === '' ||
+				$delPhone === '' ||
+				$delAddress === '' ||
+				$delDetailAddress === '' ||
+				$delResep === '' ||
+				$idKurir <= 0 ||
+				!is_numeric($lat) || !is_numeric($lon) || !is_numeric($jarakInput)
+			) {
+				$this->error("Data pengiriman tidak lengkap atau tidak valid!");
+				return;
+			}
 
-					$update = $this->M_simpan->updatedata($where, $data, 'delivery');
+			$latFloat = (float) $lat;
+			$lonFloat = (float) $lon;
+			$jarakFloat = (float) $jarakInput;
 
-					if ($update) {
-						$error = FALSE;
-					}
-				}
+			if ($latFloat < -90 || $latFloat > 90 || $lonFloat < -180 || $lonFloat > 180 || $jarakFloat < 0) {
+				$this->error("Koordinat atau jarak pengiriman tidak valid!");
+				return;
+			}
 
-				if ($error) {
-					$this->error("Gagal menyimpan data!");
-				} else {
-					$this->success('Berhasil disimpan!');
+			$straightKm = $this->calculate_haversine_km(self::RSUD_LAT, self::RSUD_LON, $latFloat, $lonFloat);
+			if ($jarakFloat + 1 < floor($straightKm)) {
+				$this->error("Jarak pengiriman tidak sesuai dengan koordinat tujuan!");
+				return;
+			}
+
+			$distance = max(0, (int) round($jarakFloat));
+			$total = $this->calculate_shipping_fee($distance);
+
+			$error = TRUE;
+			$data = array(
+				'user_entry'		=> (int) $this->session->userdata('s_usr_id'),
+				'delivery_date'		=> $delDate,
+				'delivery_time'		=> $delTime,
+				'address'			=> $delAddress,
+				'detail_address'	=> $delDetailAddress,
+				'receiver_name'		=> $delName,
+				'receiver_phone'	=> $delPhone,
+				'distance'			=> $distance,
+				'total'				=> $total,
+				'resep'				=> $delResep,
+				'kurir_id'			=> $idKurir,
+				'lat'				=> $latFloat,
+				'lon'				=> $lonFloat,
+				'prov_id'			=> (int) $this->input->post('idProv'),
+				'city_id'			=> (int) $this->input->post('idCity'),
+				'dis_id'			=> (int) $this->input->post('idDis'),
+				'subdis_id'			=> (int) $this->input->post('idSubdis'),
+				'rt_address'		=> (int) $this->input->post('delRT'),
+				'rw_address'		=> (int) $this->input->post('delRW')
+			);
+
+			if ($typePost === 'entry') {
+				$data['delivery_type'] = 3;
+				$data['invoice_num'] = date('ymdHis') . strtoupper(uniqid());
+				$result_id = $this->M_simpan->tambahdata($data, 'delivery');
+
+				if ($result_id) {
+					$error = FALSE;
 				}
 			} else {
-				redirect('dashboard');
+				$deliveryId = (int) $this->input->post('delivery_id');
+				$existing = $this->M_delivery->getDelivery($deliveryId);
+				if (!$existing || (int) $existing->status !== 1) {
+					$this->error("Data pengiriman tidak ditemukan!");
+					return;
+				}
+
+				$where['id_delivery'] = $deliveryId;
+				$update = $this->db->where($where)->update('delivery', $data);
+
+				if ($update) {
+					$error = FALSE;
+				}
+			}
+
+			if ($error) {
+				$this->error("Gagal menyimpan data!");
+			} else {
+				$this->success('Berhasil disimpan!');
 			}
 		}
 	}
 
 	function resend_delivery($delivery_id)
 	{
-		if ($this->secure()) {
-			$result = $this->M_delivery->getDelivery($delivery_id);
+		if ($this->secure_non_driver()) {
+			$result = $this->M_delivery->getDelivery((int) $delivery_id);
 
 			if ($result) {
 				$json_data = array(
@@ -178,161 +218,163 @@ class C_delivery extends BaseController
 
 	function save_resend()
 	{
-		if ($this->secure()) {
-			if ($_POST) {
-				if ($_POST['resendDate'] != $_POST['resendDate2'] || $_POST['resendTime'] > $_POST['resendTime2']) {
-					$where['id_delivery'] = $_POST['delId'];
-					$data['delivery_type'] = 3;
-					$data['delivery_date'] = $_POST['resendDate'];
-					$data['delivery_time'] = $_POST['resendTime'];
-					$data['resend'] = $_POST['delResend'] + 1;
+		if ($this->secure_non_driver() && $this->require_post()) {
+			$delId = (int) $this->input->post('delId');
+			$resendDate = trim((string) $this->input->post('resendDate', TRUE));
+			$resendTime = trim((string) $this->input->post('resendTime', TRUE));
 
-					$result = $this->M_simpan->updatedata($where, $data, 'delivery');
+			if ($delId <= 0 || !$this->is_valid_date($resendDate) || $resendTime === '') {
+				$this->error("Data kirim ulang tidak valid!");
+				return;
+			}
 
-					if ($result) {
-						$this->success('Berhasil disimpan!');
-					} else {
-						$this->error("Gagal Proses!");
-					}
+			$existing = $this->M_delivery->getDelivery($delId);
+			if (!$existing || (int) $existing->status !== 1 || !in_array((int) $existing->delivery_type, array(2, 3), TRUE)) {
+				$this->error("Pengiriman tidak ditemukan atau tidak dapat dikirim ulang!");
+				return;
+			}
+
+			if ((int) $existing->resend >= 2) {
+				$this->error("Batas maksimal kirim ulang telah tercapai!");
+				return;
+			}
+
+			if ($resendDate !== $existing->delivery_date || strtotime($resendTime) > strtotime($existing->delivery_time)) {
+				$where['id_delivery'] = $delId;
+				$data['delivery_type'] = 3;
+				$data['delivery_date'] = $resendDate;
+				$data['delivery_time'] = $resendTime;
+				$data['resend'] = (int) $existing->resend + 1;
+
+				$result = $this->M_simpan->updatedata($where, $data, 'delivery');
+
+				if ($result) {
+					$this->success('Berhasil disimpan!');
 				} else {
-					$this->error("Tidak ada perubahan atau jam lebih kecil!");
+					$this->error("Gagal Proses!");
 				}
 			} else {
-				$this->error("Gagal Proses!");
+				$this->error("Tidak ada perubahan atau jam lebih kecil!");
 			}
 		}
 	}
 
 	function detail_delivery($delivery_id, $type = null)
 	{
-		$result = $this->M_delivery->getDelivery($delivery_id);
-
-		// $html = "<input type='hidden' id='delivery_id' value='".$delivery_id."'>";
-		// $html .= "<select id='ordinary' name='ordinary' class='select2 form-select form-select-lg mb-2'>";
-		// for ($i = $urutan+1; $i <= 10; $i++) { 
-		// 	$html .= "<option value='".$i."'>".$i."</option>";
-		// }
-		// $html .= "</select>";
-		// $html .= "<div class='d-flex justify-content-end'>";
-		// $html .= "<button id='submitOrdinary' type='button' class='btn btn-sm btn-primary'>Simpan</button>";
-		// $html .= "</div>";
-
-		$alamat = $result->detail_address . "<br>RT : " . $result->rt_address . " / RW : " . $result->rw_address . "<br>" . $result->address;
-		$html = "<table style='border-bottom: 1px solid' width='100%'>";
-		$html .= "<thead class='text-center'>";
-		$html .= "<tr>";
-		$html .= "<th colspan='3'>DELIVERY OBAT</th>";
-		$html .= "</tr>";
-		$html .= "<tr style='border-bottom: 5px double black;'>";
-		$html .= "<th colspan='3'>RSUD R.A. Basoeni</th>";
-		$html .= "</tr>";
-		$html .= "</thead>";
-		$html .= "<tbody style='vertical-align: top;'>";
-		$html .= "<tr>";
-		$html .= "<th class='ps-3'>Penerima : </th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<td class='ps-4' colspan='3'>" . strtoupper($result->receiver_name) . "</td>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th class='ps-3'>No Telepon : </th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<td class='ps-4' colspan='3'>" . $result->receiver_phone . "</td>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th class='ps-3'>Tgl. Pengiriman : </th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<td class='ps-4' colspan='3'>" . $this->bln_indo($result->delivery_date) . "&nbsp;&nbsp;&nbsp;&nbsp;" . date('H : i', strtotime($result->delivery_time)) . "</td>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th class='ps-3'>Alamat : </th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<td class='ps-4' colspan='3'>" . $alamat . "</td>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th class='ps-3'>Rincian Resep : </th>";
-		$html .= "</tr>";
-		if ($type == "cetak2") {
-			$html .= "<tr>";
-			$html .= "<td class='ps-4' colspan='3' style='white-space: pre-wrap;'>" . $result->resep . "</td>";
-			$html .= "</tr>";
-			$html .= "<tr>";
-			$html .= "<th class='ps-3' height='50'>Jarak&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;" . $result->distance . " Km</th>";
-			$html .= "</tr>";
-		} else {
-			$html .= "<tr>";
-			$html .= "<td class='ps-4' colspan='3' style='white-space: pre-wrap; border-bottom: 5px double black;'>" . $result->resep . "</td>";
-			$html .= "</tr>";
-			$html .= "<tr>";
-			$html .= "<th class='pe-3 text-end'>Jarak</th>";
-			$html .= "<th class='text-end'>:</th>";
-			$html .= "<td class='pe-5 text-end' width='50%'>" . $result->distance . " Km</td>";
-			$html .= "</tr>";
-			$html .= "<tr>";
-			$html .= "<th class='pe-3 text-end'>Ongkir</th>";
-			$html .= "<th class='text-end'>:</th>";
-			$html .= "<td class='pe-5 text-end'>Rp. " . number_format($result->total, 0, ",", ".") . "</td>";
-			$html .= "</tr>";
-			$total = $result->total;
-			if ($result->resend != 0) {
-				$ongkirresend = $result->total / 2; /* ditambah 50% dari ongkos kirim */
-				$html .= "<tr>";
-				$html .= "<th class='pe-3 text-end'>Kirim Ulang</th>";
-				$html .= "<th class='text-end'>:</th>";
-				$html .= "<td class='pe-5 text-end'>Rp. " . number_format($ongkirresend, 0, ",", ".") . "</td>";
-				$html .= "</tr>";
-				$total = $result->total + $ongkirresend;
+		if ($this->secure()) {
+			$result = $this->M_delivery->getDelivery((int) $delivery_id);
+			if (!$result) {
+				$this->output->set_status_header(404);
+				echo "<div class='alert alert-warning'>Data pengiriman tidak ditemukan.</div>";
+				return;
 			}
+
+			if ((int) $this->session->userdata('s_usr_role') === self::ROLE_DRIVER && (int) $result->kurir_id !== (int) $this->session->userdata('s_usr_id')) {
+				$this->denyAccess();
+			}
+
+			$alamat = html_escape($result->detail_address)
+				. "<br>RT : " . html_escape($result->rt_address) . " / RW : " . html_escape($result->rw_address)
+				. "<br>" . html_escape($result->address);
+			$html = "<table style='border-bottom: 1px solid' width='100%'>";
+			$html .= "<thead class='text-center'>";
 			$html .= "<tr>";
-			$html .= "<th class='pe-3 text-end' height='50'>Total</th>";
-			$html .= "<th class='text-end'>:</th>";
-			$html .= "<td class='pe-5 text-end' style='border-top: solid;'>Rp. " . number_format($total, 0, ",", ".") . "</td>";
+			$html .= "<th colspan='3'>DELIVERY OBAT</th>";
 			$html .= "</tr>";
+			$html .= "<tr style='border-bottom: 5px double black;'>";
+			$html .= "<th colspan='3'>RSUD R.A. Basoeni</th>";
+			$html .= "</tr>";
+			$html .= "</thead>";
+			$html .= "<tbody style='vertical-align: top;'>";
+			$html .= "<tr>";
+			$html .= "<th class='ps-3'>Penerima : </th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<td class='ps-4' colspan='3'>" . html_escape(strtoupper($result->receiver_name)) . "</td>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th class='ps-3'>No Telepon : </th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<td class='ps-4' colspan='3'>" . html_escape($result->receiver_phone) . "</td>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th class='ps-3'>Tgl. Pengiriman : </th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<td class='ps-4' colspan='3'>" . html_escape($this->bln_indo($result->delivery_date)) . "&nbsp;&nbsp;&nbsp;&nbsp;" . html_escape(date('H : i', strtotime($result->delivery_time))) . "</td>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th class='ps-3'>Alamat : </th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<td class='ps-4' colspan='3'>" . $alamat . "</td>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th class='ps-3'>Rincian Resep : </th>";
+			$html .= "</tr>";
+			if ($type == "cetak2") {
+				$html .= "<tr>";
+				$html .= "<td class='ps-4' colspan='3' style='white-space: pre-wrap;'>" . html_escape($result->resep) . "</td>";
+				$html .= "</tr>";
+				$html .= "<tr>";
+				$html .= "<th class='ps-3' height='50'>Jarak&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;" . html_escape($result->distance) . " Km</th>";
+				$html .= "</tr>";
+			} else {
+				$html .= "<tr>";
+				$html .= "<td class='ps-4' colspan='3' style='white-space: pre-wrap; border-bottom: 5px double black;'>" . html_escape($result->resep) . "</td>";
+				$html .= "</tr>";
+				$html .= "<tr>";
+				$html .= "<th class='pe-3 text-end'>Jarak</th>";
+				$html .= "<th class='text-end'>:</th>";
+				$html .= "<td class='pe-5 text-end' width='50%'>" . html_escape($result->distance) . " Km</td>";
+				$html .= "</tr>";
+				$html .= "<tr>";
+				$html .= "<th class='pe-3 text-end'>Ongkir</th>";
+				$html .= "<th class='text-end'>:</th>";
+				$html .= "<td class='pe-5 text-end'>Rp. " . number_format((float) $result->total, 0, ",", ".") . "</td>";
+				$html .= "</tr>";
+				$total = (float) $result->total;
+				if ((int) $result->resend !== 0) {
+					$ongkirresend = $total / 2; /* ditambah 50% dari ongkos kirim */
+					$html .= "<tr>";
+					$html .= "<th class='pe-3 text-end'>Kirim Ulang</th>";
+					$html .= "<th class='text-end'>:</th>";
+					$html .= "<td class='pe-5 text-end'>Rp. " . number_format($ongkirresend, 0, ",", ".") . "</td>";
+					$html .= "</tr>";
+					$total = $total + $ongkirresend;
+				}
+				$html .= "<tr>";
+				$html .= "<th class='pe-3 text-end' height='50'>Total</th>";
+				$html .= "<th class='text-end'>:</th>";
+				$html .= "<td class='pe-5 text-end' style='border-top: solid;'>Rp. " . number_format($total, 0, ",", ".") . "</td>";
+				$html .= "</tr>";
+			}
+			$html .= "</tbody>";
+			$html .= "<tfoot class='text-center' style='vertical-align: top;'>";
+			$html .= "<tr>";
+			$html .= "<th colspan='3'>Terima Kasih</th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th colspan='3'>Layanan Konsumen</th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<th colspan='3'><i class='bx bxl-whatsapp fs-3'></i>WA 082139202767</th>";
+			$html .= "</tr>";
+			$html .= "<tr>";
+			$html .= "<td colspan='3' height='100' class='px-5 fw-light' style='font-size: 0.8rem !important;'>bila obat tidak diterima maka obat akan kembali ke rumah sakit dan akan dikenakan biaya tambahan untuk dikirimkan hari berikutnya</td>";
+			$html .= "</tr>";
+
+			$html .= "</tfoot>";
+			$html .= "</table>";
+
+			echo ($html);
 		}
-		$html .= "</tbody>";
-		$html .= "<tfoot class='text-center' style='vertical-align: top;'>";
-		$html .= "<tr>";
-		$html .= "<th colspan='3'>Terima Kasih</th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th colspan='3'>Layanan Konsumen</th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<th colspan='3'><i class='bx bxl-whatsapp fs-3'></i>WA 082139202767</th>";
-		$html .= "</tr>";
-		$html .= "<tr>";
-		$html .= "<td colspan='3' height='100' class='px-5 fw-light' style='font-size: 0.8rem !important;'>bila obat tidak diterima maka obat akan kembali ke rumah sakit dan akan dikenakan biaya tambahan untuk dikirimkan hari berikutnya</td>";
-		$html .= "</tr>";
-
-		$html .= "</tfoot>";
-		$html .= "</table>";
-
-		// $html = "<dt class='text-center'>DELIVERY OBAT</dt>";
-		// $html .= "<dt class='text-center'>RSUD R.A. Basoeni</dt>";
-		// $html .= "<hr style='border-top: solid 2px black'>";
-		// $html .= "<dt class='col-sm-4'>Penerima</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdName'>".$result->receiver_name."</dd>";
-		// $html .= "<dt class='col-sm-4'>No Telepon</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdPhone'>".$result->receiver_phone."</dd>";
-		// $html .= "<dt class='col-sm-4'>Tgl. Pengiriman</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdDate'>".$result->delivery_date."</dd>";
-		// $html .= "<dt class='col-sm-4'>Alamat</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdAddress'>".$alamat."</dd>";
-		// $html .= "<dt class='col-sm-4'>Rincian Resep</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdResep' style='white-space: pre-wrap;'>".$result->resep."</dd>";
-		// $html .= "<dt class='col-sm-4'>Jarak</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdJarak'>".$result->distance."</dd>";
-		// $html .= "<dt class='col-sm-4'>Total Ongkir</dt>";
-		// $html .= "<dd class='col-sm-8' id='mdTotal'>Rp. ".number_format($result->total, 0, ",", ".")."</dd>";
-		echo ($html);
 	}
 
 	function driver_anterin()
 	{
-		if ($this->secure()) {
+		if ($this->secure(array(self::ROLE_ADMIN, self::ROLE_DRIVER))) {
 			$headerInfo['pageTitle'] = 'Driver';
 
 			$this->load_views('delivery/driver_anterin', $headerInfo);
@@ -341,27 +383,57 @@ class C_delivery extends BaseController
 
 	function get_ordinary($delivery_id)
 	{
-		$urutan = $this->M_delivery->getOrdinary()->urutan;
+		if ($this->secure(array(self::ROLE_ADMIN, self::ROLE_DRIVER))) {
+			$deliveryId = (int) $delivery_id;
+			$delivery = $this->M_delivery->getDelivery($deliveryId);
+			if (!$delivery) {
+				echo "<div class='alert alert-warning'>Data pengiriman tidak ditemukan.</div>";
+				return;
+			}
+			if ((int) $this->session->userdata('s_usr_role') === self::ROLE_DRIVER && (int) $delivery->kurir_id !== (int) $this->session->userdata('s_usr_id')) {
+				$this->denyAccess();
+			}
 
-		$html = "<input type='hidden' id='delivery_id' value='" . $delivery_id . "'>";
-		$html .= "<select id='ordinary' name='ordinary' class='select2 form-select form-select-lg mb-2'>";
-		for ($i = $urutan + 1; $i <= $urutan + 10; $i++) {
-			$html .= "<option value='" . $i . "'>" . $i . "</option>";
+			$urutan = (int) $this->M_delivery->getOrdinary()->urutan;
+
+			$html = "<input type='hidden' id='delivery_id' value='" . $deliveryId . "'>";
+			$html .= "<select id='ordinary' name='ordinary' class='select2 form-select form-select-lg mb-2'>";
+			for ($i = $urutan + 1; $i <= $urutan + 10; $i++) {
+				$html .= "<option value='" . $i . "'>" . $i . "</option>";
+			}
+			$html .= "</select>";
+			$html .= "<div class='d-flex justify-content-end'>";
+			$html .= "<button id='submitOrdinary' type='button' class='btn btn-sm btn-primary'>Simpan</button>";
+			$html .= "</div>";
+
+			echo ($html);
 		}
-		$html .= "</select>";
-		$html .= "<div class='d-flex justify-content-end'>";
-		$html .= "<button id='submitOrdinary' type='button' class='btn btn-sm btn-primary'>Simpan</button>";
-		$html .= "</div>";
-
-		echo ($html);
 	}
 
 	function set_ordinary($delivery_id, $ordinary)
 	{
-		if ($this->secure()) {
-			$where['id_delivery'] = $delivery_id;
+		if ($this->secure(array(self::ROLE_ADMIN, self::ROLE_DRIVER)) && $this->require_post()) {
+			$deliveryId = (int) $delivery_id;
+			$ordinaryNum = (int) $ordinary;
+
+			if ($deliveryId <= 0 || $ordinaryNum <= 0) {
+				$this->error("Parameter urutan tidak valid!");
+				return;
+			}
+
+			$delivery = $this->M_delivery->getDelivery($deliveryId);
+			if (!$delivery || (int) $delivery->status !== 1 || (int) $delivery->delivery_type !== 3) {
+				$this->error("Pengiriman tidak dapat diproses!");
+				return;
+			}
+
+			if ((int) $this->session->userdata('s_usr_role') === self::ROLE_DRIVER && (int) $delivery->kurir_id !== (int) $this->session->userdata('s_usr_id')) {
+				$this->denyAccess();
+			}
+
+			$where['id_delivery'] = $deliveryId;
 			$data['delivery_type'] = 2;
-			$data['ordinary'] = $ordinary;
+			$data['ordinary'] = $ordinaryNum;
 			$result = $this->M_simpan->updatedata($where, $data, 'delivery');
 
 			if ($result) {
@@ -372,12 +444,34 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function batal_delivery($delivery_id, $reason)
+	function batal_delivery($delivery_id, $reason = null)
 	{
-		if ($this->secure()) {
-			$where['id_delivery'] = $delivery_id;
-			// $data['status'] = 0;
-			$data['cancel_reason'] = $reason;
+		if ($this->secure_non_driver() && $this->require_post()) {
+			$deliveryId = (int) $delivery_id;
+			$postReason = $this->input->post('reason');
+			$finalReason = ($postReason !== NULL && trim((string) $postReason) !== '')
+				? trim((string) $postReason)
+				: trim((string) rawurldecode((string) $reason));
+
+			if ($deliveryId <= 0 || $finalReason === '') {
+				$this->error("Alasan pembatalan harus diisi!");
+				return;
+			}
+
+			if (function_exists('mb_substr')) {
+				$finalReason = mb_substr($finalReason, 0, 500, 'UTF-8');
+			} else {
+				$finalReason = substr($finalReason, 0, 500);
+			}
+
+			$delivery = $this->M_delivery->getDelivery($deliveryId);
+			if (!$delivery || (int) $delivery->status !== 1 || !in_array((int) $delivery->delivery_type, array(2, 3), TRUE)) {
+				$this->error("Pengiriman tidak dapat dibatalkan!");
+				return;
+			}
+
+			$where['id_delivery'] = $deliveryId;
+			$data['cancel_reason'] = $finalReason;
 			$data['delivery_type'] = 0;
 			$data['ordinary'] = 0;
 			$result = $this->M_simpan->updatedata($where, $data, 'delivery');
@@ -392,8 +486,20 @@ class C_delivery extends BaseController
 
 	function selesai_delivery($delivery_id)
 	{
-		if ($this->secure()) {
-			$where['id_delivery'] = $delivery_id;
+		if ($this->secure(array(self::ROLE_ADMIN, self::ROLE_DRIVER)) && $this->require_post()) {
+			$deliveryId = (int) $delivery_id;
+			$delivery = $this->M_delivery->getDelivery($deliveryId);
+
+			if (!$delivery || (int) $delivery->status !== 1 || (int) $delivery->delivery_type !== 2) {
+				$this->error("Pengiriman tidak dalam status Delivery!");
+				return;
+			}
+
+			if ((int) $this->session->userdata('s_usr_role') === self::ROLE_DRIVER && (int) $delivery->kurir_id !== (int) $this->session->userdata('s_usr_id')) {
+				$this->denyAccess();
+			}
+
+			$where['id_delivery'] = $deliveryId;
 			$data['delivery_type'] = 1;
 			$data['received_time'] = date('Y-m-d H:i:s');
 			$result = $this->M_simpan->updatedata($where, $data, 'delivery');
@@ -412,7 +518,7 @@ class C_delivery extends BaseController
 
 	/* old */
 
-	function detail_order($id_delivery, $user_id)
+	protected function detail_order($id_delivery, $user_id)
 	{
 		if ($this->secure()) {
 			$headerInfo = array(
@@ -430,7 +536,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function payment_delivery($id_delivery, $user_id)
+	protected function payment_delivery($id_delivery, $user_id)
 	{
 		if ($this->secure()) {
 			$headerInfo = array(
@@ -448,7 +554,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function save_payment($link)
+	protected function save_payment($link)
 	{
 		if ($this->secure()) {
 			if ($this->session->userdata('s_role') == 1) {
@@ -484,7 +590,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function batal_deliverysdfsdfd($ord_id)
+	protected function batal_deliverysdfsdfd($ord_id)
 	{
 		if ($this->secure()) {
 
@@ -510,7 +616,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function update_status($id_delivery, $status, $px_id, $user_id = 0)
+	protected function update_status($id_delivery, $status, $px_id, $user_id = 0)
 	{
 		if ($this->secure()) {
 
@@ -555,7 +661,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function update_nurse($user_id, $ord_id)
+	protected function update_nurse($user_id, $ord_id)
 	{
 		if ($this->secure()) {
 
@@ -581,7 +687,7 @@ class C_delivery extends BaseController
 		}
 	}
 
-	function notif_delivery($id_delivery, $px_id, $status)
+	protected function notif_delivery($id_delivery, $px_id, $status)
 	{
 		if ($status == 1) {
 			$ntf_text = 'Permintaan Rawat Luka anda telah selesai dilayani, mohon memberi penilaian pada pelayanan kami, Terima Kasih! <a href="#" onclick="giveRate(' . $id_delivery . ')">beri penilaian</a>';
