@@ -73,11 +73,27 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
+$dbCredentials = array(
+	'hostname' => getenv('DB_HOST') !== FALSE ? getenv('DB_HOST') : 'localhost',
+	'username' => getenv('DB_USER') !== FALSE ? getenv('DB_USER') : '',
+	'password' => getenv('DB_PASS') !== FALSE ? getenv('DB_PASS') : '',
+	'database' => getenv('DB_NAME') !== FALSE ? getenv('DB_NAME') : '',
+	'port'     => getenv('DB_PORT') !== FALSE ? getenv('DB_PORT') : '3306',
+);
+
+$localDbConfig = __DIR__ . '/database.local.php';
+if (file_exists($localDbConfig)) {
+	$loadedCredentials = include $localDbConfig;
+	if (is_array($loadedCredentials)) {
+		$dbCredentials = array_merge($dbCredentials, $loadedCredentials);
+	}
+}
+
 $db['default'] = array(
-    'hostname' => 'localhost',
-    'username' => 'root',
-    'password' => '',
-    'database' => 'deliveryobat_db',
+	'hostname' => $dbCredentials['hostname'],
+	'username' => $dbCredentials['username'],
+	'password' => $dbCredentials['password'],
+	'database' => $dbCredentials['database'],
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,
@@ -92,11 +108,5 @@ $db['default'] = array(
 	'stricton' => FALSE,
 	'failover' => array(),
 	'save_queries' => TRUE,
-	'port' => '3306'
+	'port' => $dbCredentials['port']
 );
-
-// Optional local override (ignored by Git) so private credentials are not committed
-if (file_exists(__DIR__ . '/database.local.php'))
-{
-	include __DIR__ . '/database.local.php';
-}

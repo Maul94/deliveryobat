@@ -10,6 +10,11 @@ date_default_timezone_set('Asia/Jakarta'); /* Fungsi merubah jam */
  * @since : 22 Desember 2018
  */
 class BaseController extends CI_Controller {
+    const ROLE_ADMIN = 1;
+    const ROLE_DRIVER = 3;
+    const RSUD_LAT = -7.4560158877101435;
+    const RSUD_LON = 112.39420315449877;
+
     protected $role = '';
     protected $vendorId = '';
     protected $name = '';
@@ -25,32 +30,124 @@ class BaseController extends CI_Controller {
      * @return {null} $result : null
      */
 
-    function secure() {
-        if ($this->session->userdata('s_login') == TRUE) {
-            return TRUE;
-        }else{
+    protected function secure($allowedRoles = array()) {
+        if ($this->session->userdata('s_login') !== TRUE) {
+            if ($this->input->is_ajax_request()) {
+                $this->output
+                    ->set_status_header(401)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode(array(
+                        'status' => 0,
+                        'alert'  => 'warning',
+                        'pesan'  => 'Sesi Anda telah berakhir. Silakan login kembali.',
+                        'title'  => 'Unauthorized'
+                    )))
+                    ->_display();
+                exit;
+            }
             redirect('login');
-            // return FALSE;
         }
+
+        if (!empty($allowedRoles)) {
+            $userRole = (int) $this->session->userdata('s_usr_role');
+            $allowed = array_map('intval', $allowedRoles);
+            if (!in_array($userRole, $allowed, TRUE)) {
+                $this->denyAccess();
+            }
+        }
+
+        return TRUE;
+    }
+
+    protected function secure_non_driver() {
+        $this->secure();
+        if ((int) $this->session->userdata('s_usr_role') === self::ROLE_DRIVER) {
+            $this->denyAccess();
+        }
+        return TRUE;
+    }
+
+    protected function require_post() {
+        if (strtoupper($_SERVER['REQUEST_METHOD']) !== 'POST') {
+            if ($this->input->is_ajax_request()) {
+                $this->output
+                    ->set_status_header(405)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode(array(
+                        'status' => 0,
+                        'alert'  => 'warning',
+                        'pesan'  => 'Metode request tidak diizinkan.',
+                        'title'  => 'Method Not Allowed'
+                    )))
+                    ->_display();
+                exit;
+            }
+            show_error('Metode request tidak diizinkan.', 405, 'Method Not Allowed');
+        }
+        return TRUE;
+    }
+
+    protected function denyAccess($message = 'Anda tidak memiliki izin untuk mengakses fitur ini.') {
+        if ($this->input->is_ajax_request()) {
+            $this->output
+                ->set_status_header(403)
+                ->set_content_type('application/json', 'utf-8')
+                ->set_output(json_encode(array(
+                    'status' => 0,
+                    'alert'  => 'error',
+                    'pesan'  => $message,
+                    'title'  => 'Akses Ditolak'
+                )))
+                ->_display();
+            exit;
+        }
+        show_error($message, 403, 'Akses Ditolak');
+    }
+
+    protected function calculate_haversine_km($lat1, $lon1, $lat2, $lon2) {
+        $earthRadiusKm = 6371.0;
+        $dLat = deg2rad((float) $lat2 - (float) $lat1);
+        $dLon = deg2rad((float) $lon2 - (float) $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad((float) $lat1)) * cos(deg2rad((float) $lat2))
+            * sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a)));
+        return $earthRadiusKm * $c;
+    }
+
+    protected function calculate_shipping_fee($distanceKm) {
+        $distanceKm = max(0, (int) round((float) $distanceKm));
+        if ($distanceKm <= 5) {
+            return 10000;
+        }
+        return 10000 + (($distanceKm - 5) * 2000);
+    }
+
+    protected function is_valid_date($dateStr) {
+        if (!is_string($dateStr) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
+            return FALSE;
+        }
+        $dt = DateTime::createFromFormat('Y-m-d', $dateStr);
+        return $dt !== FALSE && $dt->format('Y-m-d') === $dateStr;
     }
     
-    function load_views($viewName = "", $headerInfo = NULL, $pageInfo = NULL, $footerInfo = NULL){
+    protected function load_views($viewName = "", $headerInfo = NULL, $pageInfo = NULL, $footerInfo = NULL){
         $this->load->view('include/header', $headerInfo);
         $this->load->view($viewName, $pageInfo);
         $this->load->view('include/footer', $footerInfo);
     }
 
-    function add_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status) {
+    protected function add_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status) {
         $this->load->model('M_dashboard');
         return $this->M_dashboard->add_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status);
     }
 
-    function update_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status) {
+    protected function update_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status) {
         $this->load->model('M_dashboard');
         return $this->M_dashboard->add_notif($ntf_for_patient, $ntf_title, $ntf_text, $ntf_detail, $ntf_status);
     }
 
-    function input_error() {
+    protected function input_error() {
         $json['status'] = 0;
         $json['alert']    = 'warning';
         $json['pesan']  = "<div class='alert alert-warning error_validasi'>".validation_errors()."</div>";
@@ -64,7 +161,7 @@ class BaseController extends CI_Controller {
     // }
 
     //alert success
-    function success($pesan = "Data berhasil ditambahkan", $tambahan = null, $title = "Sukses") {
+    protected function success($pesan = "Data berhasil ditambahkan", $tambahan = null, $title = "Sukses") {
         $json['status']       = 1;
         $json['alert']        = 'success';
         $json['pesan']        = $pesan;
@@ -74,7 +171,7 @@ class BaseController extends CI_Controller {
     }
 
     //alert error
-    function error($pesan = "Data tidak diproses!", $title = "Peringatan!") {
+    protected function error($pesan = "Data tidak diproses!", $title = "Peringatan!") {
         $json['status']   = 2;
         $json['alert']    = 'warning';
         $json['pesan']    = $pesan;
@@ -82,14 +179,14 @@ class BaseController extends CI_Controller {
         echo json_encode($json);
     }
     
-    function clean_tag_input($str) {
+    protected function clean_tag_input($str) {
         $t = preg_replace('/<[^<|>]+?>/', '', htmlspecialchars_decode($str));
         $t = htmlentities($t, ENT_QUOTES, "UTF-8");
         $t = trim($t);
         return $t;
     }
 
-    function bln_indo($tanggal){
+    protected function bln_indo($tanggal){
         $bulan = array (
             1 =>   'Januari',
             'Februari',
@@ -104,7 +201,10 @@ class BaseController extends CI_Controller {
             'November',
             'Desember'
         );
-        $pecahkan = explode('-', $tanggal);
+        $pecahkan = explode('-', (string) $tanggal);
+        if (count($pecahkan) !== 3 || !isset($bulan[(int)$pecahkan[1]])) {
+            return html_escape((string) $tanggal);
+        }
         
         // variabel pecahkan 0 = tanggal
         // variabel pecahkan 1 = bulan

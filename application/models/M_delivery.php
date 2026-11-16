@@ -7,28 +7,38 @@ class M_delivery extends CI_Model
 		$sql = "SELECT id_user as kurir_id, usr_fullname as kurir_name FROM ms_user where usr_role = 3 AND status = 1";
 		return $this->db->query($sql)->result();
 	}
-	function getDeliveryList($date = null, $deltype, $driver = null)
+	function getDeliveryList($date = null, $deltype = 'semua', $driver = null)
 	{
+		$params = array();
 		$and = "";
-		if ($date == null) {
-			$and .= " AND d.`delivery_date` = '" . date('Y-m-d') . "'";
+
+		if ($date == null || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date)) {
+			$targetDate = date('Y-m-d');
 		} else {
-			$and .= " AND d.`delivery_date` = '" . $date . "'";
+			$targetDate = $date;
 		}
-		if ($deltype == 'semua') {
-			$and .= "";
-		} else {
-			$and .= " AND d.`delivery_type` = '" . $deltype . "'";
+		$and .= " AND d.`delivery_date` = ?";
+		$params[] = $targetDate;
+
+		if ($deltype !== 'semua') {
+			$and .= " AND d.`delivery_type` = ?";
+			$params[] = (int) $deltype;
 		}
-		if ($driver != null && $this->session->userdata('s_usr_role') != 1) {
-			$and .= " AND d.kurir_id = $driver";
+
+		$sessionRole = (int) $this->session->userdata('s_usr_role');
+		if ($sessionRole === 3) {
+			$and .= " AND d.kurir_id = ?";
+			$params[] = (int) $this->session->userdata('s_usr_id');
+		} elseif ($driver !== null && $sessionRole !== 1) {
+			$and .= " AND d.kurir_id = ?";
+			$params[] = (int) $driver;
 		}
+
 		$sql = "SELECT (@row:=@row+1) AS `nomor`, d.*, mu.`id_user`, mu.`usr_fullname` 
 				FROM (SELECT @row :=0) AS no, delivery d
 				LEFT JOIN ms_user mu ON mu.`id_user` = d.`kurir_id` AND mu.`status` = 1
 				WHERE d.`status` = 1 $and ORDER BY FIELD(d.`delivery_type`,2,3,1,0), d.`ordinary` = 0, d.`ordinary`";
-		// $and ORDER BY FIELD(d.`delivery_type`,2,3,1,0), field(d.`ordinary`,1,2,3,4,5,6,7,8,9,10), FIELD(d.`status`,1,0)";
-		return $this->db->query($sql)->result();
+		return $this->db->query($sql, $params)->result();
 	}
 	function getDelivery($delivery_id)
 	{
@@ -39,13 +49,13 @@ class M_delivery extends CI_Model
 			LEFT JOIN ms_cities mc ON mc.`id_city` = d.`city_id`
 			LEFT JOIN ms_districts md ON md.`id_dis` = d.`dis_id`
 			LEFT JOIN ms_subdistricts ms ON ms.`id_subdis` = d.`subdis_id`
-			where d.`id_delivery` = $delivery_id";
-		return $this->db->query($sql)->row();
+			where d.`id_delivery` = ?";
+		return $this->db->query($sql, array((int) $delivery_id))->row();
 	}
 	function getOrdinary()
 	{
-		$sql = "SELECT count(ordinary) as urutan FROM delivery where delivery_type = 2 AND status = 1 AND delivery_date = '" . date('Y-m-d') . "'";
-		return $this->db->query($sql)->row();
+		$sql = "SELECT count(ordinary) as urutan FROM delivery where delivery_type = 2 AND status = 1 AND delivery_date = ?";
+		return $this->db->query($sql, array(date('Y-m-d')))->row();
 	}
 	/* old */
 	function add_detail_delivery($dataDetail)

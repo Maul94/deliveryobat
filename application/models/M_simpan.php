@@ -32,8 +32,8 @@ class M_simpan extends CI_Model
 			return FALSE;
 		}
 	}
-	function queryselect($select)
+	function queryselect($select, $params = array())
 	{
-		return $this->db->query($select);
+		return $this->db->query($select, $params);
 	}
 }

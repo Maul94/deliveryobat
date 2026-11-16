@@ -51,7 +51,7 @@
                                 </div>
                                 <div class="col">
                                     <!-- <label for="flatpickr-time" class="form-label">Time Picker</label> -->
-                                    <input type="text" class="form-control text-center" placeholder="Waktu Pengiriman" id="delTime" name="delTime" value="<?= date('H:ii') ?>">
+                                    <input type="text" class="form-control text-center" placeholder="Waktu Pengiriman" id="delTime" name="delTime" value="<?= date('H:i') ?>">
                                 </div>
                             </div>
                         </div>
@@ -110,8 +110,6 @@
                                     <label class="form-label">Total Ongkir</label>
                                     <input type="hidden" class="form-control" id="delTotal" name="delTotal" value="">
                                     <input type="text" class="form-control" id="delOngkirDisplay" name="delOngkirDisplay" value="Rp 0" readonly>
-                                    <option value="" selected></option>
-                                    </select>
                                 </div>
                             </div>
                             <div class="row col-md-6">
@@ -188,8 +186,8 @@
                         <div class="card-body">
                             <div class="col mb-3">
                                 <label class="form-label">Nama Kurir</label>
-                                <input type="hidden" id="idKurir" name="idKurir" value="<?= $kurir[0]->kurir_id; ?>">
-                                <input type="text" class="form-control" id="delKurir" name="delKurir" value="<?= $kurir[0]->kurir_name; ?>" placeholder="Ketik Nama Kurir" readonly>
+                                <input type="hidden" id="idKurir" name="idKurir" value="<?= !empty($kurir) ? html_escape($kurir[0]->kurir_id) : ''; ?>">
+                                <input type="text" class="form-control" id="delKurir" name="delKurir" value="<?= !empty($kurir) ? html_escape($kurir[0]->kurir_name) : ''; ?>" placeholder="Ketik Nama Kurir" readonly>
                             </div>
                             <div class="col mb-3">
                                 <label class="form-label">Metode Pembayaran</label>
@@ -392,17 +390,17 @@
 
     $('#btnSimpan').click(function() {
         if (form.valid()) {
-            $('#mdName').html($('#delName').val().toUpperCase());
-            $('#mdPhone').html($('#delPhone').val());
-            $('#mdDate').html($.datepicker.formatDate('dd MM yy', new Date($('input[name=delDate]').val())) + '&nbsp;&nbsp;&nbsp;&nbsp;' + $('input[name=delTime]').val());
+            $('#mdName').text($('#delName').val().toUpperCase());
+            $('#mdPhone').text($('#delPhone').val());
+            $('#mdDate').html(escapeHtml($.datepicker.formatDate('dd MM yy', new Date($('input[name=delDate]').val()))) + '&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml($('input[name=delTime]').val()));
             // $('#fgh').html(harga);
-            var alamat = $('textarea[name=delDetailAddress]').val();
-            alamat += '<br>RT : ' + $('input[name=delRT]').val() + ' / RW : ' + $('input[name=delRW]').val();
-            alamat += '<br>' + $('textarea[name=delAddress]').val();
+            var alamat = escapeHtml($('textarea[name=delDetailAddress]').val());
+            alamat += '<br>RT : ' + escapeHtml($('input[name=delRT]').val()) + ' / RW : ' + escapeHtml($('input[name=delRW]').val());
+            alamat += '<br>' + escapeHtml($('textarea[name=delAddress]').val());
             $('#mdAddress').html(alamat);
-            $('#mdResep').html($('textarea[name=delResep]').val());
-            $('#mdJarak').html($('input[name=delJarak]').val() + ' Km');
-            $('#mdTotal').html($('input[name=delOngkirDisplay]').val());
+            $('#mdResep').text($('textarea[name=delResep]').val());
+            $('#mdJarak').text($('input[name=delJarak]').val() + ' Km');
+            $('#mdTotal').text($('input[name=delOngkirDisplay]').val());
             // $('#rty]').html($('#latitude').val()+', '+$('#longitude').val());
             $('#modal-Detail').modal({
                 backdrop: 'static',
@@ -434,10 +432,12 @@
                         window.location.href = "<?= site_url('delivery_list'); ?>";
                     }, 1000);
                 } else {
+                    $('#submit').attr('disabled', false);
                     sweetalert2(json.alert, json.pesan);
                 }
             },
             error: function(xhr, ajaxOptions, thrownError) {
+                $('#submit').attr('disabled', false);
                 sweetalert2('warning', xhr.status + ' ' + thrownError);
             }
         });
@@ -467,7 +467,7 @@
 
                 address = result.display_name.replace("East Java", "Jawa Timur");
                 address = address.replace(", Indonesia", "");
-                li.innerHTML = address;
+                li.textContent = address;
 
                 const lat = document.createAttribute("lat");
                 lat.value = result.lat;
@@ -502,7 +502,7 @@
                     routing(lat, lon);
                     map.flyTo(position, 13);
 
-                    $('#delAddress').val(ucwords($('#disName').val()) + ', ' + event.target.innerHTML);
+                    $('#delAddress').val(ucwords($('#disName').val()) + ', ' + event.target.textContent);
 
                     // console.log(clickedData.boundingbox[0]);
                 })
@@ -711,7 +711,7 @@
 
                     const li = document.createElement('li');
                     li.classList.add('list-group-item', 'list-group-item-action');
-                    li.innerHTML = address;
+                    li.textContent = address;
                     resultList.appendChild(li);
                     $('#delAddress').val(ucwords($('#disName').val()) + ', ' + address);
                 }

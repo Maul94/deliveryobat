@@ -49,9 +49,12 @@
 
 <script type="text/javascript">
     $(document).ready(function(){
-        function ajaxjson() {
+        function ajaxjson(showLoader) {
+            if (typeof showLoader === 'undefined') {
+                showLoader = true;
+            }
             $.ajax({
-                url: "<?= base_url("deliveryjson/") ?>"+$('#delDate').val()+"/"+$('#delType').val()+"/<?= $this->session->userdata('s_usr_id') ?>",
+                url: "<?= base_url("deliveryjson/") ?>"+$('#delDate').val()+"/"+$('#delType').val(),
                 type: 'POST',
                 cache: false,
                 dataType: 'json',
@@ -105,41 +108,42 @@
                                 resend += `<span class="badge bg-label-warning me-1">Kirim Ulang Kedua</span>`;
                             }
                             
-                            var nohp = "";
-                            //let text = key.receiver_phone;
-                            
-                            if(key.receiver_phone.substr(0,2) == "62"){
-                                var nohp = key.receiver_phone;
-                            	
-                            }else{
-                            	var nohp = "62"+key.receiver_phone.substring(1);
+                            var nohp = String(key.receiver_phone || '').replace(/[^0-9]/g, '');
+                            if (nohp.substr(0, 2) !== "62" && nohp.length > 0) {
+                                nohp = "62" + nohp.substring(1);
                             }
+
+                            var safeName = escapeHtml(key.receiver_name);
+                            var safePhone = escapeHtml(key.receiver_phone);
+                            var safeAddress = escapeHtml(key.address);
+                            var safeDetailAddress = escapeHtml(key.detail_address);
+                            var safeResep = escapeHtml(key.resep);
 
                             html += `<div class="card">
                                 <h5 class="card-header p-3">
                                     <div class="d-flex">
                                         `+iconType+`
                                         <div class="d-flex flex-column ps-1">
-                                            <h6 class="alert-heading d-flex align-items-center fw-bold mb-1">`+key.receiver_name+`</h6>
-                                            <span><i class='bx bxl-whatsapp-square text-success'></i> <a class="text-success" href="https://wa.me/`+nohp+`">`+key.receiver_phone+`</a></span>
+                                            <h6 class="alert-heading d-flex align-items-center fw-bold mb-1">`+safeName+`</h6>
+                                            <span><i class='bx bxl-whatsapp-square text-success'></i> <a class="text-success" href="https://wa.me/`+encodeURIComponent(nohp)+`">`+safePhone+`</a></span>
                                         </div>
                                     </div>
                                 </h5>
                                 <div class="card-body">
                                     `+resend+`
                                     <hr class="mt-2">
-                                    <h5>`+key.address+`</h5>
+                                    <h5>`+safeAddress+`</h5>
                                     Detail Alamat : 
-                                    <h5 class="ps-2">`+key.detail_address+`</h5>
+                                    <h5 class="ps-2">`+safeDetailAddress+`</h5>
 
                                     <div class="mb-3 col-12 mb-0">
                                         `+bgAlert+`
                                             <h5 class="alert-heading fw-bold mb-1">Rincian Resep</h5>
-                                            <p class="mb-0" style='white-space: pre-wrap;'>`+key.resep+`</p>
+                                            <p class="mb-0" style='white-space: pre-wrap;'>`+safeResep+`</p>
                                         </div>
                                     </div>
                                     
-                                    <form id="formAccountDeactivation" onsubmit="return false">
+                                    <form onsubmit="return false">
                                         `+btnConfirm+`
                                     </form>
                                 </div>
@@ -176,17 +180,26 @@
                     }
                 },
                 beforeSend: function() {
-                    $('#loader').css('display', 'block');
+                    if (showLoader) {
+                        $('#loader').css('display', 'block');
+                    }
                 },
                 complete: function() {
-                    $('#loader').css('display', 'none');
+                    if (showLoader) {
+                        $('#loader').css('display', 'none');
+                    }
                 },
             })
         };
 
-        ajaxjson();
+        ajaxjson(true);
 
-        setInterval(ajaxjson, 7000);
+        setInterval(function() {
+            if (document.hidden || $('.modal.show').length > 0 || $('.swal2-container').length > 0) {
+                return;
+            }
+            ajaxjson(false);
+        }, 7000);
 
         /* Flatpickr */
         flatpickr('#delDate', {
@@ -200,11 +213,11 @@
         /* end Flatpickr */
         
         $('#delDate').change(function() {
-            ajaxjson();
+            ajaxjson(true);
         });
 
         $('#delType').change(function() {
-            ajaxjson();
+            ajaxjson(true);
         });
         
         $(document).on('click', '#submitOrdinary', function(e){
@@ -217,7 +230,7 @@
                 success: function(json){
                     if (json.status == 1) {
                         sweetalert2(json.alert, json.pesan);
-                        ajaxjson();
+                        ajaxjson(true);
                         $('#modal-Ordinary').modal('hide');
 
                     }else{
@@ -264,7 +277,7 @@
                         success: function(json){
                             if (json.status == 1) {
                                 sweetalert2(json.alert, json.pesan);
-                                ajaxjson();
+                                ajaxjson(true);
                             }else{
                                 sweetalert2(json.alert, json.pesan);
                             }

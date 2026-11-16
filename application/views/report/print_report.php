@@ -66,7 +66,7 @@
 
 		<tr>
 
-			<th>Tanggal <?= $dateReport ?></th>
+			<th>Tanggal <?= html_escape($dateReport) ?></th>
 
 		</tr>
 
@@ -104,19 +104,23 @@
 
 			foreach ($resultReport as $key => $value) {
 
+				$reasonText = ($value->cancel_reason !== null && $value->cancel_reason !== '')
+					? html_escape(strtolower(rawurldecode($value->cancel_reason)))
+					: '';
+
 				echo '<tr>';
 
-				echo '<td>' . $value->nomor . '</td>';
+				echo '<td>' . (int) $value->nomor . '</td>';
 
-				echo '<td style="text-align: left;">' . $value->receiver_name . ' ' . ($value->cancel_reason != "" ? "<i><sub>(" . urldecode(strtolower($value->cancel_reason)) . ")</i></sub>" : "") . '</td>';
+				echo '<td style="text-align: left;">' . html_escape($value->receiver_name) . ' ' . ($reasonText !== '' ? "<i><sub>(" . $reasonText . ")</i></sub>" : "") . '</td>';
 
-				echo '<td>' . $value->status . '</td>';
+				echo '<td>' . html_escape($value->status) . '</td>';
 
-				echo '<td>' . $value->distance . ' Km</td>';
+				echo '<td>' . html_escape($value->distance) . ' Km</td>';
 
-				echo '<td>' . number_format($value->ongkir, 0, ",", ".") . '</td>';
+				echo '<td>' . number_format((float) $value->ongkir, 0, ",", ".") . '</td>';
 
-				echo '<td>' . number_format($value->total, 0, ",", ".") . '</td>';
+				echo '<td>' . number_format((float) $value->total, 0, ",", ".") . '</td>';
 
 				echo '</tr>';
 

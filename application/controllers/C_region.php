@@ -11,8 +11,8 @@ class C_region extends BaseController {
 	}
 
 	function getCity($idProv) {
-		// if ($this->secure()) {
-			$result = $this->M_region->get_City($idProv);
+		if ($this->secure()) {
+			$result = $this->M_region->get_City((int) $idProv);
 
 			if ($result->num_rows() > 0) {
 				$datajson = array(
@@ -26,12 +26,12 @@ class C_region extends BaseController {
 			}
 
 			echo json_encode($datajson);
-		// }
+		}
 	}
 
 	function getDis($idCity) {
-		// if ($this->secure()) {
-			$result = $this->M_region->get_Dis($idCity);
+		if ($this->secure()) {
+			$result = $this->M_region->get_Dis((int) $idCity);
 
 			if ($result->num_rows() > 0) {
 				$datajson = array(
@@ -45,12 +45,12 @@ class C_region extends BaseController {
 			}
 
 			echo json_encode($datajson);
-		// }
+		}
 	}
 
 	function getSubdis($idDis) {
-		// if ($this->secure()) {
-			$result = $this->M_region->get_Subdis($idDis);
+		if ($this->secure()) {
+			$result = $this->M_region->get_Subdis((int) $idDis);
 
 			if ($result->num_rows() > 0) {
 				$datajson = array(
@@ -64,6 +64,6 @@ class C_region extends BaseController {
 			}
 
 			echo json_encode($datajson);
-		// }
+		}
 	}
 }

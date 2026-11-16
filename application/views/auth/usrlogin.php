@@ -5,6 +5,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta name="csrf-token-name" content="<?= html_escape($this->security->get_csrf_token_name()) ?>" />
+    <meta name="csrf-token-hash" content="<?= html_escape($this->security->get_csrf_hash()) ?>" />
 
     <title>Admin Login | <?= config_item('web_title') ?></title>
 
@@ -114,7 +116,7 @@
                             <div class="mb-3 form-password-toggle">
                                 <div class="d-flex justify-content-between">
                                     <label class="form-label">Password</label>
-                                    <a href="#">
+                                    <a href="javascript:void(0);" id="forgotPassLink">
                                         <small>Lupa Password?</small>
                                     </a>
                                 </div>
@@ -143,11 +145,43 @@
     <!-- / Content -->
 
     <script src="<?= config_item('assets'); ?>vendor/libs/jquery/jquery-3.6.0.min.js"></script>
+    <script>
+        $.ajaxPrefilter(function(options) {
+            if (options.crossDomain) {
+                return;
+            }
+            var method = (options.type || options.method || 'GET').toUpperCase();
+            if (method !== 'POST') {
+                return;
+            }
+            var tokenName = $('meta[name="csrf-token-name"]').attr('content');
+            var tokenHash = $('meta[name="csrf-token-hash"]').attr('content');
+            if (!tokenName || !tokenHash) {
+                return;
+            }
+            if (typeof options.data === 'string') {
+                if (options.data.indexOf(encodeURIComponent(tokenName) + '=') === -1 && options.data.indexOf(tokenName + '=') === -1) {
+                    options.data += (options.data.length > 0 ? '&' : '') + encodeURIComponent(tokenName) + '=' + encodeURIComponent(tokenHash);
+                }
+            } else if ($.isPlainObject(options.data)) {
+                if (!(tokenName in options.data)) {
+                    options.data[tokenName] = tokenHash;
+                }
+            } else if (!options.data) {
+                options.data = encodeURIComponent(tokenName) + '=' + encodeURIComponent(tokenHash);
+            }
+        });
+    </script>
     <script src="<?= config_item('assets'); ?>vendor/js/myown.js"></script>
     <script src="<?= config_item('assets'); ?>vendor/libs/jquery-validate/jquery.validate.min.js"></script>
     <script src="<?= config_item('assets'); ?>vendor/libs/sweetalert2/sweetalert2.js"></script>
 
     <script type="text/javascript">
+        $('#forgotPassLink').on('click', function(e) {
+            e.preventDefault();
+            sweetalert2('warning', 'Silakan hubungi Administrator untuk melakukan reset password akun Anda.');
+        });
+
         $('#usrName').on('keypress',function(e) {
             if(e.which == 13) {
                 $('#usrPassword').focus();

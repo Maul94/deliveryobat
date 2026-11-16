@@ -12,7 +12,7 @@ class C_report extends BaseController {
 	}
 
 	function index() {
-		if ($this->secure()) {
+		if ($this->secure_non_driver()) {
 			$headerInfo['pageTitle'] = 'Laporan';
 			
 			$this->load_views('report/report_index', $headerInfo);
@@ -20,7 +20,12 @@ class C_report extends BaseController {
 	}
 
 	function print_report() {
-		if ($this->secure()) {
+		if ($this->secure_non_driver() && $this->require_post()) {
+			$reportDate = trim((string) $this->input->post('reportDate', TRUE));
+			if (!$this->is_valid_date($reportDate)) {
+				show_error('Format tanggal laporan tidak valid.', 400, 'Bad Request');
+			}
+
 			$query = "SELECT (@row:=@row+1) AS `nomor`, d.*, d.`total` as ongkir,
 				CASE
 					WHEN d.`delivery_type` = 1 THEN 'Selesai'
@@ -36,11 +41,11 @@ class C_report extends BaseController {
 				END total
 				FROM (SELECT @row :=0) AS no, delivery as d 
 				WHERE d.`status` = 1
-				AND d.`delivery_date` = '".$_POST['reportDate']."'
+				AND d.`delivery_date` = ?
 				ORDER BY FIELD(d.`delivery_type`, 1, 2, 3, 0)
 				";
-			$data['resultReport'] = $this->M_simpan->queryselect($query)->result();
-			$data['dateReport'] = $this->bln_indo($_POST['reportDate']);
+			$data['resultReport'] = $this->M_simpan->queryselect($query, array($reportDate))->result();
+			$data['dateReport'] = $this->bln_indo($reportDate);
 			$this->load->view('report/print_report', $data);
 		}
 	}
